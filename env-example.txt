@@ -1,0 +1,16 @@
+# Billo settings. On Render, add these under Environment (never upload real keys to GitHub).
+NODE_ENV=production
+SECRET=put-a-long-random-phrase-here
+BASE_URL=https://your-billo-address.onrender.com
+PAYSTACK_SECRET_KEY=sk_test_...      # test key first, live key later
+ADMIN_KEY=choose-a-long-private-key  # protects /admin (code generator)
+WHATSAPP_NUMBER=2348012345678        # international format, no + or spaces
+SUPPORT_EMAIL=you@example.com        # shown on Privacy and Terms pages
+GA_ID=G-XXXXXXXXXX                   # a NEW Google Analytics property for Billo
+PRO_PRICE_NGN=1500                   # 30-day Pro, naira
+PRO_DAY_NGN=300                      # 24-hour pass, naira
+PRO_PRICE_USD=2
+PRO_DAY_USD=1
+USD_ENABLED=0                        # 1 only after Paystack approves USD
+FREE_INVOICES=3                      # free PDFs per month
+# DEV_PRO=1                          # LOCAL TESTING ONLY, never on the live site

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Billo – Invoice &amp; Receipt Maker</title>
+<meta name="description" content="Make a clean invoice or receipt in seconds. Download a PDF and send it on WhatsApp.">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#059669">
+<script>if((navigator.deviceMemory||4)<=2||(navigator.hardwareConcurrency||4)<=4)document.documentElement.className="lite"</script>
+<link rel="stylesheet" href="style.css">
+<style>
+.f input,.f select,.f textarea{width:100%;background:var(--in);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:11px;font-size:1rem;font-family:inherit;margin-top:8px}
+.f textarea{min-height:80px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.it{border:1px solid var(--bd);border-radius:12px;padding:8px 10px 10px;margin-bottom:10px;background:var(--in)}
+.it .d{margin-top:0}.it .g{display:grid;grid-template-columns:.7fr 1.2fr .9fr auto auto;gap:6px;align-items:center}
+.it .g input{margin-top:6px;padding:9px}.it .lt{font-weight:700;text-align:right;font-size:.9rem}.it .x,.it .sv{min-width:0;flex:none;padding:8px 10px}
+#tot{margin-top:12px;font-size:.95rem}#tot div{display:flex;justify-content:space-between;padding:3px 0}#tot .big{font-size:1.15rem;font-weight:800;color:var(--ac);border-top:1px solid var(--bd);margin-top:4px;padding-top:8px}
+.pv{background:#fff;color:#111;border-radius:12px;padding:14px;border:1px solid var(--bd);font-size:.85rem}
+.pv .ph{display:flex;justify-content:space-between;background:#059669;color:#fff;margin:-14px -14px 10px;padding:12px 14px;border-radius:12px 12px 0 0}
+.pv .pb{margin-bottom:8px}.pv table{width:100%;border-collapse:collapse}.pv td{padding:5px 2px;border-bottom:1px solid #eee}.pv td:last-child{text-align:right}.pv .tt{text-align:right;font-size:1rem}
+#logoPrev{max-height:48px;width:auto;margin:8px 0 0;border-radius:6px}
+.hist .item{flex-direction:column;align-items:stretch}.hist .item small{display:block}
+.hist .acts{display:flex;gap:6px;flex-wrap:wrap}.hist .acts .btn{flex:1;min-width:72px;padding:8px}
+.bd{font-size:.68rem;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px;background:var(--in);border:1px solid var(--bd);color:var(--mu)}
+.b-paid{background:#d1fae5;color:#065f46;border-color:#a7f3d0}.b-unpaid{background:#fef3c7;color:#92400e;border-color:#fde68a}.b-overdue{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+#owed{background:var(--in);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.92rem}#owed:empty{display:none}#owed a{color:var(--ac);font-weight:700}
+</style>
+</head><body>
+<div class="top"><div class="bar-top">
+  <div><div class="logo">Billo</div><div class="tag">Invoices &amp; receipts in seconds</div></div>
+  <div style="display:flex;gap:8px"><button id="plan" class="pill">Free · Go Pro</button></div>
+</div></div>
+
+<main class="wrap">
+  <div class="tabs"><button id="tInv" class="on">Invoice</button><button id="tRct">Receipt</button><button id="tQuo">Quote</button></div>
+
+  <div class="card f">
+    <h2>Details</h2>
+    <div class="g2"><input id="num" aria-label="Number" placeholder="Number"><input id="date" type="date" aria-label="Date"></div>
+    <label id="dueLbl" class="lbl" style="margin-top:8px">Due date</label><input id="due" type="date" aria-label="Due date" title="Due date">
+    <select id="method" class="hide" aria-label="Payment method"><option>Cash</option><option>Bank transfer</option><option>POS</option><option>Card</option><option>Other</option></select>
+  </div>
+
+  <div class="card f">
+    <h2>Your business</h2>
+    <input id="bname" placeholder="Business name" maxlength="80">
+    <div class="g2"><input id="bphone" placeholder="Phone" maxlength="40" inputmode="tel"><input id="baddr" placeholder="Address (optional)" maxlength="150"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="btn ghost" id="logoBtn">Add logo <em>Pro</em><input id="logo" type="file" accept="image/*"></label>
+      <button id="logoX" class="btn danger hide" type="button">Remove logo</button>
+    </div>
+    <img id="logoPrev" class="hide" alt="Logo">
+  </div>
+
+  <div class="card f">
+    <h2>Customer</h2>
+    <input id="cname" list="custList" placeholder="Customer name" maxlength="80"><datalist id="custList"></datalist>
+    <input id="ccontact" placeholder="Phone or email (optional)" maxlength="100">
+  </div>
+
+  <div class="card f">
+    <h2>Items</h2>
+    <div id="items"></div>
+    <div class="row"><button id="addItem" class="btn ghost" type="button">+ Add item</button><button id="fromCat" class="btn ghost" type="button">Saved items <em>Pro</em></button></div>
+    <div id="catBox" class="hide" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card f">
+    <h2>Totals</h2>
+    <div class="g3">
+      <input id="disc" type="number" inputmode="decimal" min="0" step="any" placeholder="Discount">
+      <input id="tax" type="number" inputmode="decimal" min="0" max="100" step="any" placeholder="Tax %">
+      <input id="fee" type="number" inputmode="decimal" min="0" step="any" placeholder="Delivery">
+    </div>
+    <select id="cur" aria-label="Currency"><option value="NGN">₦ Naira (NGN)</option><option value="USD">$ US Dollar (USD)</option><option value="GBP">£ Pound (GBP)</option><option value="EUR">€ Euro (EUR)</option></select>
+    <textarea id="notes" placeholder="Notes or payment details, e.g. Bank, account number, thank you message" maxlength="600"></textarea>
+    <div id="tot"></div>
+  </div>
+
+  <div class="card"><h2>Preview</h2><div id="pv" class="pv"></div></div>
+
+  <div class="card">
+    <div class="actions">
+      <button id="dl" class="btn primary">Download PDF</button>
+      <button id="sh" class="btn ghost">Share</button>
+      <button id="wd" class="btn ghost">Word <em>Pro</em></button>
+      <button id="sv" class="btn ghost">Save</button>
+      <button id="nw" class="btn danger">New</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card hist"><h2>History</h2><div id="owed"></div><div id="hist"></div>
+    <div class="row" style="margin-top:12px"><button id="bk" class="btn ghost" type="button">Download backup</button><label class="btn ghost">Restore backup<input id="rs" type="file" accept="application/json,.json"></label></div>
+  </div>
+</main>
+<footer class="foot"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a><br>© Billo</footer>
+
+<div id="planSheet" class="sheetwrap hide"><div class="sheet">
+  <h2 id="planWhat">Pro feature</h2>
+  <button id="pDay" class="btn primary block"></button>
+  <button id="pMonth" class="btn primary block"></button>
+  <button id="pCancel" class="btn ghost block">Not now</button>
+</div></div>
+
+<script src="/ga.js" defer></script>
+<script src="consent.js" defer></script>
+<script src="app.js" defer></script>
+</body></html>

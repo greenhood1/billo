@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>Billo Admin</title><link rel="stylesheet" href="style.css"></head><body>
+<div class="top"><div class="bar-top"><div class="logo">Billo admin</div></div></div>
+<main class="wrap"><div class="card">
+<h2>Generate access code</h2>
+<p style="color:var(--mu)">Use after a customer pays by transfer. Send them the code on WhatsApp. It works once and expires in 7 days.</p>
+<input id="k" type="password" placeholder="Admin key" style="width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--in);color:var(--tx)">
+<select id="p" style="width:100%;margin-top:8px;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--in);color:var(--tx)"><option value="month">30-day Pro</option><option value="day">24-hour pass</option></select>
+<button id="g" class="btn primary block">Generate code</button>
+<div id="o" class="ai hide" style="font-size:1.2rem;word-break:break-all"></div>
+</div></main>
+<script>
+document.getElementById('g').onclick = async () => {
+  const o = document.getElementById('o'); o.classList.remove('hide'); o.textContent = '…';
+  const r = await fetch('/api/admin/code', { method: 'POST', headers: { 'x-admin-key': document.getElementById('k').value, 'content-type': 'application/json' }, body: JSON.stringify({ plan: document.getElementById('p').value }) });
+  o.textContent = r.ok ? (await r.json()).code : 'Wrong key.';
+};
+</script></body></html>
