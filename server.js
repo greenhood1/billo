@@ -69,6 +69,8 @@ app.post('/api/dev-pro', (req, res) => DEV ? res.json(makeToken()) : res.status(
 
 // ---- Invoice & receipt maker: free = 3 PDFs a month with a footer line; Pro = unlimited, logo, Word ----
 const makeInvoicePdf = require('./pdfinv'), FREE_INV = +E.FREE_INVOICES || 3, invCount = new Map();
+const stats = new Map(), startedAt = new Date().toISOString(); let totalDocs = 0;   // memory only: resets on restart
+const count = dv => { dv = String(dv).slice(0, 36); stats.set(dv, (stats.get(dv) || 0) + 1); totalDocs++; console.log('document made by', dv.slice(0, 8)) };
 const nm = (v, max) => { v = Number(v); return Number.isFinite(v) && v >= 0 ? Math.min(v, max) : 0 };
 const st = (v, n) => String(v ?? '').slice(0, n);
 app.post('/api/invoice', (req, res) => {
@@ -88,6 +90,7 @@ app.post('/api/invoice', (req, res) => {
     return res.status(402).json({ error: `Free plan: ${FREE_INV} invoices a month. Upgrade for unlimited.` });
   const fname = (d.type + '-' + d.number).replace(/[^\w-]/g, '') || 'document';
   if (format === 'word') {
+    count(device);
     const h = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'), m = n => d.currency + ' ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const rows = items.map(i => `<tr><td>${h(i.desc)}</td><td>${i.qty}</td><td>${m(i.price)}</td><td>${m(i.qty * i.price)}</td></tr>`).join('');
     return res.type('application/msword').attachment(fname + '.doc').send(`<html><meta charset="utf-8"><body style="font-family:Arial"><h1>${d.type.toUpperCase()}</h1><p><b>${h(d.biz.name)}</b><br>${h(d.biz.phone)}<br>${h(d.biz.address)}</p><p>No: ${h(d.number)} &nbsp; Date: ${h(d.date)}</p><p><b>Bill to:</b> ${h(d.cust.name)} ${h(d.cust.contact)}</p><table border="1" cellpadding="6" style="border-collapse:collapse"><tr><th>Description</th><th>Qty</th><th>Price</th><th>Amount</th></tr>${rows}</table><p>Subtotal: ${m(sub)}<br>Discount: ${m(discount)}<br>Tax: ${m(tax)}<br>Other: ${m(fee)}<br><b>Total: ${m(t.total)}</b></p><p>${h(d.notes).replace(/\n/g, '<br>')}</p></body></html>`);
@@ -95,7 +98,14 @@ app.post('/api/invoice', (req, res) => {
   const lg = pro && typeof logo === 'string' && logo.length < 400000 ? makeInvoicePdf.parseJpeg(Buffer.from(logo, 'base64')) : null;
   const pdf = makeInvoicePdf(d, t, { watermark: !pro, logo: lg });
   if (!pro) invCount.set(key, (invCount.get(key) || 0) + 1);
+  count(device);
   res.type('application/pdf').attachment(fname + '.pdf').send(pdf);
+});
+
+app.post('/api/admin/stats', (req, res) => {
+  if (!E.ADMIN_KEY || req.get('x-admin-key') !== E.ADMIN_KEY) return res.status(404).end();
+  const c = [...stats.values()];
+  res.json({ counting_since: startedAt, documents_made: totalDocs, different_people: c.length, made_2_or_more: c.filter(n => n >= 2).length, made_5_or_more: c.filter(n => n >= 5).length });
 });
 
 // ---- Manual payments (bank transfer / WhatsApp): you make a code, the customer redeems it ----

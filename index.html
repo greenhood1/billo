@@ -26,11 +26,12 @@
 </style>
 </head><body>
 <div class="top"><div class="bar-top">
-  <div><div class="logo">Billo</div><div class="tag">Create Invoices &amp; receipts in seconds</div></div>
+  <div><div class="logo">Billo</div><div class="tag">Invoices &amp; receipts in seconds</div></div>
   <div style="display:flex;gap:8px"><button id="plan" class="pill">Free · Go Pro</button></div>
 </div></div>
 
 <main class="wrap">
+  <p class="alt" id="alt">Card not working? <a href="#" id="waPay">Pay on WhatsApp</a> · <a href="#" id="code">Enter access code</a></p>
   <div class="tabs"><button id="tInv" class="on">Invoice</button><button id="tRct">Receipt</button><button id="tQuo">Quote</button></div>
 
   <div class="card f">
@@ -82,6 +83,7 @@
     <div class="actions">
       <button id="dl" class="btn primary">Download PDF</button>
       <button id="sh" class="btn ghost">Share</button>
+      <button id="wa" class="btn ghost">WhatsApp</button>
       <button id="wd" class="btn ghost">Word <em>Pro</em></button>
       <button id="sv" class="btn ghost">Save</button>
       <button id="nw" class="btn danger">New</button>
@@ -93,7 +95,7 @@
     <div class="row" style="margin-top:12px"><button id="bk" class="btn ghost" type="button">Download backup</button><label class="btn ghost">Restore backup<input id="rs" type="file" accept="application/json,.json"></label></div>
   </div>
 </main>
-<footer class="foot"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a><br><Marquee>©Powered by Ebene-Vento Designs</Marquee></footer>
+<footer class="foot"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a><br>© Billo</footer>
 
 <div id="planSheet" class="sheetwrap hide"><div class="sheet">
   <h2 id="planWhat">Pro feature</h2>

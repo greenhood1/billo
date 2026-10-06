@@ -1,7 +1,7 @@
 const $ = s => document.querySelector(s);
 const L = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } };
 const S = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} };
-let token = L('token', null), dev = false, price = 1500, priceUsd = 2, priceDay = 300, priceDayUsd = 1, usdOn = false;
+let token = L('token', null), dev = false, price = 1500, priceUsd = 2, priceDay = 300, priceDayUsd = 1, usdOn = false, wa = '';
 const device = L('device', null) || (() => { const d = crypto.randomUUID(); S('device', d); return d })();
 let type = 'invoice', logo = L('invLogo', null), hist = L('invHist', []), custs = L('invCusts', []), cat = L('invCat', []);
 const TYPES = { invoice: ['INV-', 'INVOICE', 'Total due'], receipt: ['RCT-', 'RECEIPT', 'Total paid'], quote: ['QUO-', 'QUOTE', 'Total'] };
@@ -13,7 +13,7 @@ const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFr
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- Plan / payments (same Pro plan as Billo) ----------
-function renderPlan() { $('#plan').textContent = isPro() ? (dev ? 'PRO (test) ✓' : 'PRO ✓') : (dev ? 'Free (test)' : 'Free · Go Pro'); $('#plan').classList.toggle('pro', isPro()); $('#logoPrev').classList.toggle('hide', !(isPro() && logo)); $('#logoX').classList.toggle('hide', !(isPro() && logo)); fillCusts(); renderHist() }
+function renderPlan() { $('#alt').classList.toggle('hide', !!isPro()); $('#plan').textContent = isPro() ? (dev ? 'PRO (test) ✓' : 'PRO ✓') : (dev ? 'Free (test)' : 'Free · Go Pro'); $('#plan').classList.toggle('pro', isPro()); $('#logoPrev').classList.toggle('hide', !(isPro() && logo)); $('#logoX').classList.toggle('hide', !(isPro() && logo)); fillCusts(); renderHist() }
 function cur() { return usdOn && Intl.DateTimeFormat().resolvedOptions().timeZone !== 'Africa/Lagos' ? 'USD' : 'NGN' }
 function priceTxt(p = 'month') { const u = cur() === 'USD'; return u ? '$' + (p === 'day' ? priceDayUsd : priceUsd) : '₦' + (p === 'day' ? priceDay : price).toLocaleString() }
 async function upgrade(plan = 'month') {
@@ -43,7 +43,7 @@ $('#plan').onclick = async () => {
 (async () => {
   const ref = new URLSearchParams(location.search).get('reference');
   if (ref) { const r = await fetch('/api/verify?reference=' + encodeURIComponent(ref)); if (r.ok) { token = await r.json(); S('token', token); window.track?.('purchase') } history.replaceState({}, '', '/') }
-  try { const cf = await (await fetch('/api/config')).json(); dev = cf.dev; price = cf.price; priceUsd = cf.priceUsd; priceDay = cf.priceDay; priceDayUsd = cf.priceDayUsd; usdOn = cf.usdOn } catch {}
+  try { const cf = await (await fetch('/api/config')).json(); dev = cf.dev; price = cf.price; priceUsd = cf.priceUsd; priceDay = cf.priceDay; priceDayUsd = cf.priceDayUsd; usdOn = cf.usdOn; wa = cf.wa } catch {}
   if (dev && !isPro() && !L('devFree', false)) { try { token = await (await fetch('/api/dev-pro', { method: 'POST' })).json(); S('token', token) } catch {} }
   renderPlan();
 })();
@@ -133,13 +133,29 @@ function done(d) {
   $('#num').value = nextNo(); refresh();
   if (isPro() && d.cust.name && !custs.includes(d.cust.name)) { custs.unshift(d.cust.name); custs = custs.slice(0, 100); S('invCusts', custs); fillCusts() }
   window.track?.('invoice_made');
+  const n = L('invTotal', 0) + 1; S('invTotal', n); if (n === 2) window.track?.('second_invoice'); if (n === 5) window.track?.('fifth_invoice');
 }
 $('#dl').onclick = async () => { const o = await build('pdf'); if (!o) return; save(o.blob, fname(o.d, 'pdf')); done(o.d); status('Downloaded ✔') };
+// Chrome can share the PDF file itself. Browsers that cannot (e.g. Opera Mini) get the PDF downloaded plus a ready message.
+function waNumber(c) {
+  let n = /@/.test(c || '') ? '' : String(c || '').replace(/\D/g, ''); if (n.startsWith('0') && n.length === 11) n = '234' + n.slice(1);
+  return n.length < 10 || n.length > 15 ? '' : n;
+}
+function docMsg(d) {
+  return `Hello${d.cust.name ? ' ' + d.cust.name : ''}, here is your ${d.type} ${d.number} from ${d.biz.name}: ${SYM[d.currency]}${fmt(calc(d).total)}${d.type === 'invoice' && d.due ? ', due ' + d.due : ''}. Thank you!`;
+}
 $('#sh').onclick = async () => {
-  const o = await build('pdf'); if (!o) return;
-  const f = new File([o.blob], fname(o.d, 'pdf'), { type: 'application/pdf' });
-  if (navigator.canShare?.({ files: [f] })) { try { await navigator.share({ files: [f], title: o.d.number }); done(o.d) } catch {} }
-  else { save(o.blob, f.name); done(o.d); status('Sharing not supported here, so it was downloaded.') }
+  const o = await build('pdf'); if (!o) return; const name = fname(o.d, 'pdf'); let f = null;
+  try { f = new File([o.blob], name, { type: 'application/pdf' }) } catch {}
+  if (f && navigator.canShare?.({ files: [f] })) { try { await navigator.share({ files: [f], title: o.d.number, text: docMsg(o.d) }); done(o.d) } catch {} return }
+  save(o.blob, name); done(o.d);
+  if (navigator.share) { try { await navigator.share({ title: o.d.number, text: docMsg(o.d) }) } catch {} }
+  status('This browser cannot attach files, so the PDF was downloaded. Open WhatsApp and attach it from your downloads.');
+};
+$('#wa').onclick = async () => {
+  const o = await build('pdf'); if (!o) return; save(o.blob, fname(o.d, 'pdf')); done(o.d);
+  open('https://wa.me/' + waNumber(o.d.cust.contact) + '?text=' + encodeURIComponent(docMsg(o.d)), '_blank');
+  status('PDF downloaded. In WhatsApp, tap the paperclip and attach it.'); window.track?.('whatsapp_send');
 };
 $('#wd').onclick = async () => { if (!needPro('Word export')) return; const o = await build('word'); if (!o) return; save(o.blob, fname(o.d, 'doc')); done(o.d); status('Downloaded ✔') };
 
@@ -169,7 +185,7 @@ function remind(h) {
   if (!needPro('Payment reminders')) return;
   const d = h.d, tt = SYM[d.currency] + fmt(calc(d).total), c = d.cust.contact || '';
   const msg = `Hello${d.cust.name ? ' ' + d.cust.name : ''}, a friendly reminder that ${d.number} from ${d.biz.name} for ${tt}${d.due ? ' was due on ' + d.due : ' is awaiting payment'}. Please send payment when you can. Thank you!`;
-  let n = /@/.test(c) ? '' : c.replace(/\D/g, ''); if (n.startsWith('0') && n.length === 11) n = '234' + n.slice(1); if (n.length < 10 || n.length > 15) n = '';
+  const n = waNumber(c);
   open('https://wa.me/' + n + '?text=' + encodeURIComponent(msg), '_blank'); window.track?.('reminder');
 }
 function toReceipt(h) {
@@ -220,6 +236,23 @@ $('#rs').onchange = async e => {
 
 function newDoc() { $('#items').innerHTML = ''; addItem(); ['cname', 'ccontact', 'disc', 'tax', 'fee', 'due'].forEach(i => $('#' + i).value = ''); $('#num').value = nextNo(); refresh(); scrollTo(0, 0) }
 $('#nw').onclick = () => { if (confirm('Start a new blank document? Your business details are kept.')) newDoc() };
+
+// ---------- Manual payment: pay on WhatsApp, then enter the access code you receive ----------
+$('#waPay').onclick = e => {
+  e.preventDefault();
+  if (!wa) return alert('WhatsApp payment is not set up yet.');
+  open('https://wa.me/' + wa + '?text=' + encodeURIComponent('Hi, I want to pay for Billo Pro. My card did not work.'), '_blank');
+};
+$('#code').onclick = async e => {
+  e.preventDefault();
+  const code = prompt('Enter your access code:'); if (!code) return;
+  try {
+    const r = await fetch('/api/redeem', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) });
+    const j = await r.json(); if (!r.ok) return alert(j.error);
+    token = j; S('token', token); renderPlan(); window.track?.('purchase', { method: 'code' });
+    alert(j.plan === 'day' ? 'Pro unlocked for 24 hours ✔' : 'Pro unlocked for 30 days ✔');
+  } catch { alert('Server not reachable.') }
+};
 
 // ---------- Start ----------
 const b = L('invBiz', {});

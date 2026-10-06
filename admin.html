@@ -8,6 +8,7 @@
 <input id="k" type="password" placeholder="Admin key" style="width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--in);color:var(--tx)">
 <select id="p" style="width:100%;margin-top:8px;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--in);color:var(--tx)"><option value="month">30-day Pro</option><option value="day">24-hour pass</option></select>
 <button id="g" class="btn primary block">Generate code</button>
+<button id="u" class="btn ghost block">Show usage</button><div id="s" class="ai hide"></div>
 <div id="o" class="ai hide" style="font-size:1.2rem;word-break:break-all"></div>
 </div></main>
 <script>
@@ -15,5 +16,10 @@ document.getElementById('g').onclick = async () => {
   const o = document.getElementById('o'); o.classList.remove('hide'); o.textContent = '…';
   const r = await fetch('/api/admin/code', { method: 'POST', headers: { 'x-admin-key': document.getElementById('k').value, 'content-type': 'application/json' }, body: JSON.stringify({ plan: document.getElementById('p').value }) });
   o.textContent = r.ok ? (await r.json()).code : 'Wrong key.';
+};
+document.getElementById('u').onclick = async () => {
+  const s = document.getElementById('s'); s.classList.remove('hide'); s.textContent = '…';
+  const r = await fetch('/api/admin/stats', { method: 'POST', headers: { 'x-admin-key': document.getElementById('k').value } });
+  s.textContent = r.ok ? Object.entries(await r.json()).map(([k, v]) => k.replace(/_/g, ' ') + ': ' + v).join('\n') : 'Wrong key.';
 };
 </script></body></html>
