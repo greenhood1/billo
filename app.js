@@ -120,11 +120,20 @@ async function build(format) {
   if (!d.biz.name) { status('Enter your business name.'); return null }
   if (!d.items.some(i => i.desc && i.qty > 0)) { status('Add at least one item with a quantity.'); return null }
   status('Preparing…');
-  try {
-    const r = await fetch('/api/invoice', { method: 'POST', headers: { 'content-type': 'application/json', 'x-pro-token': token?.t || '' }, body: JSON.stringify({ format, data: d, logo: isPro() ? logo : null, device }) });
-    if (!r.ok) { const j = await r.json(); status(j.error); if (r.status === 402) needPro(format === 'word' ? 'Word export' : 'Unlimited invoices'); return null }
-    status(''); return { blob: await r.blob(), d };
-  } catch { status('Server not reachable. Try again.'); return null }
+  const send = () => fetch('/api/invoice', { method: 'POST', headers: { 'content-type': 'application/json', 'x-pro-token': token?.t || '' }, body: JSON.stringify({ format, data: d, logo: isPro() ? logo : null, device }) });
+  // Render's free server sleeps when idle and answers 502/503 (or drops the connection) while it wakes up, which can take about a minute.
+  let r = null;
+  for (let i = 0; i < 20 && !r; i++) {
+    try { const x = await send(); if (![502, 503, 504].includes(x.status)) r = x } catch {}
+    if (!r) { status(i ? 'Waking the server… ' + Math.round(i * 3) + 's (this only happens after a quiet spell)' : 'Waking the server… one moment'); await new Promise(ok => setTimeout(ok, 3000)) }
+  }
+  if (!r) { status('Cannot reach the server. Check your internet, wait a minute and try again.'); return null }
+  if (!r.ok) {
+    let msg = 'Something went wrong (error ' + r.status + '). Please try again.';
+    try { msg = (await r.json()).error || msg } catch {}
+    status(msg); if (r.status === 402) needPro(format === 'word' ? 'Word export' : 'Unlimited invoices'); return null;
+  }
+  try { const blob = await r.blob(); status(''); return { blob, d } } catch { status('The file did not come through. Please try again.'); return null }
 }
 const fname = (d, ext) => ((d.type + '-' + (d.number || 'doc')).replace(/[^\w-]/g, '')) + '.' + ext;
 const save = (blob, name) => Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name }).click();

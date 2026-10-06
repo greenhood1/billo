@@ -74,6 +74,9 @@ const count = dv => { dv = String(dv).slice(0, 36); stats.set(dv, (stats.get(dv)
 const nm = (v, max) => { v = Number(v); return Number.isFinite(v) && v >= 0 ? Math.min(v, max) : 0 };
 const st = (v, n) => String(v ?? '').slice(0, n);
 app.post('/api/invoice', (req, res) => {
+  try { invoiceHandler(req, res) } catch (e) { console.error('invoice error:', e); if (!res.headersSent) res.status(500).json({ error: 'Could not build the file. Please try again.' }) }
+});
+function invoiceHandler(req, res) {
   const { format = 'pdf', data: x = {}, logo, device = 'anon' } = req.body, pro = isPro(req);
   if (format === 'word' && !pro) return res.status(402).json({ error: 'Word export is a Pro feature.' });
   const items = (Array.isArray(x.items) ? x.items : []).slice(0, 50)
@@ -100,7 +103,7 @@ app.post('/api/invoice', (req, res) => {
   if (!pro) invCount.set(key, (invCount.get(key) || 0) + 1);
   count(device);
   res.type('application/pdf').attachment(fname + '.pdf').send(pdf);
-});
+}
 
 app.post('/api/admin/stats', (req, res) => {
   if (!E.ADMIN_KEY || req.get('x-admin-key') !== E.ADMIN_KEY) return res.status(404).end();
@@ -154,4 +157,8 @@ app.get('/api/verify', async (req, res) => {
 app.use((req, res) => req.path.startsWith('/api')
   ? res.status(404).json({ error: 'Not found' })
   : res.status(404).type('html').send('<meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;text-align:center;padding:60px"><h2>Page not found</h2><a href="/">Back to Billo</a>'));
+app.use((err, req, res, next) => {   // any other failure: answer in JSON and log it
+  console.error('server error:', err);
+  if (!res.headersSent) res.status(err.status || 500).json({ error: err.status === 413 ? 'That is too large.' : 'Server error. Please try again.' });
+});
 app.listen(E.PORT || 3000, () => console.log('Billo on ' + BASE));
