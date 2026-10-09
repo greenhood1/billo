@@ -153,18 +153,19 @@ function waNumber(c) {
 function docMsg(d) {
   return `Hello${d.cust.name ? ' ' + d.cust.name : ''}, here is your ${d.type} ${d.number} from ${d.biz.name}: ${SYM[d.currency]}${fmt(calc(d).total)}${d.type === 'invoice' && d.due ? ', due ' + d.due : ''}. Thank you!`;
 }
+// One "Send" button. A website cannot jump straight into WhatsApp with a file, but the phone's share menu can: it opens with the PDF
+// attached and WhatsApp is one tap away. Browsers without file sharing (e.g. Opera Mini) get the PDF downloaded plus a ready WhatsApp message.
 $('#sh').onclick = async () => {
   const o = await build('pdf'); if (!o) return; const name = fname(o.d, 'pdf'); let f = null;
   try { f = new File([o.blob], name, { type: 'application/pdf' }) } catch {}
-  if (f && navigator.canShare?.({ files: [f] })) { try { await navigator.share({ files: [f], title: o.d.number, text: docMsg(o.d) }); done(o.d) } catch {} return }
+  if (f && navigator.canShare?.({ files: [f] })) {
+    try { await navigator.share({ files: [f], title: o.d.number, text: docMsg(o.d) }); done(o.d); status('Sent ✔'); window.track?.('send_shared') }
+    catch (e) { if (e && e.name !== 'AbortError') status('Could not open the share menu. Try Download PDF.') }
+    return;
+  }
   save(o.blob, name); done(o.d);
-  if (navigator.share) { try { await navigator.share({ title: o.d.number, text: docMsg(o.d) }) } catch {} }
-  status('This browser cannot attach files, so the PDF was downloaded. Open WhatsApp and attach it from your downloads.');
-};
-$('#wa').onclick = async () => {
-  const o = await build('pdf'); if (!o) return; save(o.blob, fname(o.d, 'pdf')); done(o.d);
   open('https://wa.me/' + waNumber(o.d.cust.contact) + '?text=' + encodeURIComponent(docMsg(o.d)), '_blank');
-  status('PDF downloaded. In WhatsApp, tap the paperclip and attach it.'); window.track?.('whatsapp_send');
+  status('PDF downloaded. In WhatsApp, tap the paperclip and attach it.'); window.track?.('send_fallback');
 };
 $('#wd').onclick = async () => { if (!needPro('Word export')) return; const o = await build('word'); if (!o) return; save(o.blob, fname(o.d, 'doc')); done(o.d); status('Downloaded ✔') };
 
